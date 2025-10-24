@@ -2,13 +2,33 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
 {
 
 # hyprland shit
 programs.hyprland = {
 enable = true;
-xwayland.enable = true;
+package = inputs.hyprland.package.${pkgs.stdenv.hostPlatform.system}.hyprland;
+portalPackage = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+};
+
+#programs.hyprland.portalPackage = true;
+
+
+
+services.xserver = {
+  enable = true;
+  displayManager.gdm = {
+    enable = true;
+    wayland = true;
+  };
+};
+
+
+xdg.portal = {
+  enable = true;
+  extraPortals = [ pkgs.xdg-desktop-portal-hyprland ];
+  config.Wayland.default = [ "hyprland" ];
 };
 
   # Bootloader.
@@ -31,6 +51,7 @@ hardware.graphics = {
 environment.sessionVariables = {
   NIXOS_OZONE_WL = "1";
   no_hardware_cursors = "1";
+  
 };
 
 #  services.greetd = {
