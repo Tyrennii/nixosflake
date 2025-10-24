@@ -1,72 +1,44 @@
 {
-  description = "First NixOS flake";
-
-
-programs.hyprland.enable = true;
-
-
-  
-  services.xserver = {
-    enable = true;
-    displayManager.gdm = {
-      enable = true;
-      wayland = true;
-    };
-  };
-
+  description = "First NixOS flake with Hyprland and Home Manager";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager = {
-      url = "github:nix-community/home-manager/master";  # Changed to master
+      url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-  hyprland = {
-    url = "github:hyprwm/Hyprland";
-    inputs.nixpkgs.follows = "nixpkgs";
+    hyprland = {
+      url = "github:hyprwm/Hyprland";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # Removed home-nix input since we're using local ./home.nix for consistency
   };
 
-    home-nix = {
-      url = "path:/home/arx/.config/home-manager";
-      flake = false;
-    };
-  };
+  outputs = { self, nixpkgs, home-manager, hyprland, ... } @inputs: {
+    # Optional: Example package
+    packages.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.hello;
 
-  outputs = { self, nixpkgs, home-manager, home-nix, hyprland, ... } @inputs: {
-    packages.x86_64-linux = {
-      hello = nixpkgs.legacyPackages.x86_64-linux.hello;
-      default = self.packages.x86_64-linux.hello;
-      nixosConfiguration.nixos = nixpkgs.lib.nixosSystem {
-        specialArgs = { inherit inputs; }; #important part apparently
-        modules = [
-          ./configuration.nix
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.arx = import ./home.nix;
-
-            programs.hyprland = {
-    enable = true;
-    package = hyprland.packages.${pkgs.system}.hyprland;
-            };
-            };
-   ];     
-};
-     };
-    };
-
+    # Standalone Home Manager config (for non-NixOS activation if needed)
     homeConfigurations."arx" = home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
-      modules = [
-        "${inputs.home-nix}/home.nix"
-      ];
+      modules = [ ./home.nix ];
     };
 
-    nixosConfigurations.myNixos = nixpkgs.lib.nixosSystem {
+    # Main NixOS configuration
+    nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = { inherit inputs; };  # Passes inputs (e.g., hyprland) to modules
       modules = [
-        ./nixos/configuration.nix
+        ./configuration.nix
+        home-manager.nixosModules.home-manager
+        {
+          # Home Manager integration
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            users.arx = import ./home.nix;
+          };
+        }
       ];
     };
   };
